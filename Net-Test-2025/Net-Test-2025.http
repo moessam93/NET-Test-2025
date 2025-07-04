@@ -1,6 +1,0 @@
-@Net_Test_2025_HostAddress = http://localhost:5217
-
-GET {{Net_Test_2025_HostAddress}}/weatherforecast/
-Accept: application/json
-
-###
