@@ -18,12 +18,12 @@ A .NET 8 Web API project for client management with CRUD operations, built with 
 - **SQL Server LocalDB** - Database engine
 - **Swagger/OpenAPI** - API documentation
 
-## 📋 Prerequisites
+## Prerequisites
 
 - [.NET 8 SDK](https://dotnet.microsoft.com/download/dotnet/8.0)
 - [SQL Server LocalDB](https://docs.microsoft.com/en-us/sql/database-engine/configure-windows/sql-server-express-localdb) (included with Visual Studio)
 
-## 🔧 Installation
+## Installation
 
 1. **Clone the repository**
    ```bash
@@ -46,7 +46,7 @@ A .NET 8 Web API project for client management with CRUD operations, built with 
    dotnet build
    ```
 
-## 🗄️ Database Configuration
+## Database Configuration
 
 ### Connection String
 
@@ -212,7 +212,7 @@ curl -X POST "http://localhost:5217/api/Client" \
   }'
 ```
 
-## 🔧 Common Commands
+## Common Commands
 
 ```bash
 # Build project
