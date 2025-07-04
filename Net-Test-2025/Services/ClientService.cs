@@ -4,16 +4,20 @@ using Net_Test_2025.Domains;
 using Net_Test_2025.Helpers;
 using Net_Test_2025.Services.Contracts.DTOs;
 using Net_Test_2025.Services.Contracts.Interfaces;
+using System.Globalization;
+using System.Text;
 
 namespace Net_Test_2025.Services;
 
 public class ClientService : IClientService
 {
     private readonly AppDbContext _context;
+    private readonly TextInfo _textInfo;
 
     public ClientService(AppDbContext context)
     {
         _context = context;
+        _textInfo = CultureInfo.InvariantCulture.TextInfo;
     }
     
     public async Task<ServiceResult> GetAllClients(ClientsListingRequest request)
@@ -101,7 +105,7 @@ public class ClientService : IClientService
                 Email = request.Email ?? throw new ArgumentException("Email is required"),
                 Phone = request.Phone ?? throw new ArgumentException("Phone is required"),
                 Age = request.Age,
-                Gender = Enum.Parse<Gender>(request.Gender ?? throw new ArgumentException("Gender is required")),
+                Gender = Enum.Parse<Gender>(_textInfo.ToTitleCase(request.Gender) ?? throw new ArgumentException("Gender is required")),
             };
             
             _context.Clients.Add(client);
@@ -129,7 +133,7 @@ public class ClientService : IClientService
             client.Email = !string.IsNullOrWhiteSpace(request.Email) ? request.Email : client.Email;
             client.Phone = !string.IsNullOrWhiteSpace(request.Phone) ? request.Phone : client.Phone;
             client.Age = !string.IsNullOrWhiteSpace(request.Age) ? request.Age : client.Age;
-            client.Gender = !string.IsNullOrWhiteSpace(request.Gender) ? Enum.Parse<Gender>(request.Gender) : client.Gender;
+            client.Gender = !string.IsNullOrWhiteSpace(request.Gender) ? Enum.Parse<Gender>(_textInfo.ToTitleCase(request.Gender)) : client.Gender;
             
             _context.Clients.Update(client);
             await _context.SaveChangesAsync();
