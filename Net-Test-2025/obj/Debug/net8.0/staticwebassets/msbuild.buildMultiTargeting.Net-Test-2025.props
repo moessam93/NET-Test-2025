@@ -1,3 +1,0 @@
-﻿<Project>
-  <Import Project="../build/Net-Test-2025.props" />
-</Project>
