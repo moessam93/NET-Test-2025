@@ -1,33 +1,35 @@
-using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.AspNetCore.Authentication.OpenIdConnect;
+using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.OpenApi.Models;
 using Net_Test_2025.Data;
 using Net_Test_2025.Services.Contracts.Interfaces;
 using Net_Test_2025.Services;
+using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Mvc.Authorization;
 
 var builder = WebApplication.CreateBuilder(args);
 
+
+
 // Add services to the container.
-builder.Services.AddControllers();
+builder.Services.AddControllers(options =>
+{
+    // Require authentication for all controllers by default
+    var policy = new AuthorizationPolicyBuilder()
+        .RequireAuthenticatedUser()
+        .Build();
+    options.Filters.Add(new AuthorizeFilter(policy));
+});
+
 // Learn more about configuring Swagger/OpenAPI at https://aka.ms/aspnetcore/swashbuckle
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen(c =>
 {
-    c.AddSecurityDefinition("oauth2", new OpenApiSecurityScheme
+    c.AddSecurityDefinition("OpenID", new OpenApiSecurityScheme
     {
-        Type = SecuritySchemeType.OAuth2,
-        Flows = new OpenApiOAuthFlows
-        {
-            AuthorizationCode = new OpenApiOAuthFlow
-            {
-                AuthorizationUrl = new Uri($"https://login.microsoftonline.com/{builder.Configuration["AzureAd:TenantId"]}/oauth2/v2.0/authorize"),
-                TokenUrl = new Uri($"https://login.microsoftonline.com/{builder.Configuration["AzureAd:TenantId"]}/oauth2/v2.0/token"),
-                Scopes = new Dictionary<string, string>
-                {
-                    { $"api://{builder.Configuration["AzureAd:ClientId"]}/access_as_user", "Access API as user" }
-                }
-            }
-        }
+        Type = SecuritySchemeType.OpenIdConnect,
+        OpenIdConnectUrl = new Uri($"https://login.microsoftonline.com/{builder.Configuration["AzureAd:TenantId"]}/v2.0/.well-known/openid_configuration")
     });
     
     c.AddSecurityRequirement(new OpenApiSecurityRequirement
@@ -38,57 +40,87 @@ builder.Services.AddSwaggerGen(c =>
                 Reference = new OpenApiReference
                 {
                     Type = ReferenceType.SecurityScheme,
-                    Id = "oauth2"
+                    Id = "OpenID"
                 }
             },
-            new[] { $"api://{builder.Configuration["AzureAd:ClientId"]}/access_as_user" }
+            new string[] {}
         }
     });
 });
+
 builder.Services.AddDbContext<AppDbContext>(options =>
     options.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection")));
 
-// Configure Azure AD Authentication
-builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
-    .AddJwtBearer(JwtBearerDefaults.AuthenticationScheme, options =>
+// Configure OpenID Connect Authentication for SSO
+builder.Services.AddAuthentication(options =>
+{
+    options.DefaultScheme = CookieAuthenticationDefaults.AuthenticationScheme;
+    options.DefaultChallengeScheme = OpenIdConnectDefaults.AuthenticationScheme;
+})
+.AddCookie(CookieAuthenticationDefaults.AuthenticationScheme, options =>
+{
+    if (builder.Environment.IsDevelopment())
     {
-        var azureAdConfig = builder.Configuration.GetSection("AzureAd");
-        options.Authority = $"{azureAdConfig["Instance"]}{azureAdConfig["TenantId"]}/v2.0";
-        options.Audience = azureAdConfig["ClientId"];
-        options.RequireHttpsMetadata = false; // Set to true in production
-        
-        // Accept tokens for this application
-        options.TokenValidationParameters = new Microsoft.IdentityModel.Tokens.TokenValidationParameters
+        // Development: Allow HTTP cookies
+        options.Cookie.SameSite = SameSiteMode.Lax;
+        options.Cookie.SecurePolicy = CookieSecurePolicy.SameAsRequest;
+    }
+    else
+    {
+        // Production: Require HTTPS for security
+        options.Cookie.SameSite = SameSiteMode.None;
+        options.Cookie.SecurePolicy = CookieSecurePolicy.Always;
+    }
+})
+.AddOpenIdConnect(OpenIdConnectDefaults.AuthenticationScheme, options =>
+{
+    var azureAdConfig = builder.Configuration.GetSection("AzureAd");
+    
+    options.Authority = $"{azureAdConfig["Instance"]}{azureAdConfig["TenantId"]}/v2.0";
+    options.ClientId = azureAdConfig["ClientId"];
+    options.ClientSecret = azureAdConfig["ClientSecret"];
+    options.ResponseType = "code";
+    options.CallbackPath = azureAdConfig["CallbackPath"];
+    
+    // Configure scopes for OpenID Connect
+    options.Scope.Clear();
+    options.Scope.Add("openid");
+    options.Scope.Add("profile");
+    options.Scope.Add("email");
+    
+    // Save tokens to be able to use them later
+    options.SaveTokens = true;
+    
+    // Map claims
+    options.GetClaimsFromUserInfoEndpoint = true;
+    options.TokenValidationParameters = new Microsoft.IdentityModel.Tokens.TokenValidationParameters
+    {
+        ValidateIssuer = true,
+        ValidateAudience = true,
+        ValidateLifetime = true,
+        ValidateIssuerSigningKey = true,
+        ValidIssuer = $"https://login.microsoftonline.com/{azureAdConfig["TenantId"]}/v2.0"
+    };
+    
+    // Handle authentication events
+    options.Events = new OpenIdConnectEvents
+    {
+        OnAuthenticationFailed = context =>
         {
-            ValidateIssuer = true,
-            ValidateAudience = true,
-            ValidateLifetime = true,
-            ValidateIssuerSigningKey = true,
-            ValidAudiences = new[] { azureAdConfig["ClientId"], $"api://{azureAdConfig["ClientId"]}" },
-            ValidIssuers = new[] 
-            { 
-                $"https://sts.windows.net/{azureAdConfig["TenantId"]}/",
-                $"https://login.microsoftonline.com/{azureAdConfig["TenantId"]}/v2.0"
-            }
-        };
-    });
+            context.Response.Redirect("/");
+            context.HandleResponse();
+            return Task.CompletedTask;
+        }
+    };
+});
+
+builder.Services.AddAuthorization();
 builder.Services.AddScoped<IClientService, ClientService>();
-
-
 var app = builder.Build();
 
-
 // Configure the HTTP request pipeline.
-if (app.Environment.IsDevelopment())
-{
-    app.UseSwagger();
-    app.UseSwaggerUI(c =>
-    {
-        c.OAuthClientId(builder.Configuration["AzureAd:ClientId"]);
-        c.OAuthUsePkce();
-        c.OAuthScopes($"api://{builder.Configuration["AzureAd:ClientId"]}/access_as_user");
-    });
-}
+app.UseSwagger();
+app.UseSwaggerUI();
 app.UseHttpsRedirection();
 
 // Add Authentication and Authorization middleware

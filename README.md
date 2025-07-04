@@ -1,6 +1,6 @@
 # NET-Test-2025
 
-A .NET 8 Web API project for client management with CRUD operations, built with clean architecture principles and secured with Azure AD OAuth2 authentication.
+A .NET 8 Web API project for client management with CRUD operations, built with clean architecture principles and secured with Azure AD OpenID Connect Single Sign-On (SSO).
 
 ## Features
 
@@ -8,8 +8,9 @@ A .NET 8 Web API project for client management with CRUD operations, built with 
 - **Entity Framework Core**: Code-first approach with SQL Server
 - **Input Validation**: Model validation with custom attributes
 - **Error Handling**: ServiceResult pattern for consistent error responses
-- **OAuth2 Authentication**: Secured with Azure AD Single Sign-On (SSO)
-- **Swagger UI**: Interactive API documentation with OAuth2 authentication
+- **OpenID Connect SSO**: Secured with Azure AD Single Sign-On authentication
+- **Cookie Authentication**: Session-based authentication with OpenID Connect
+- **Swagger UI**: Interactive API documentation with OpenID Connect authentication
 - **Soft Delete**: Clients are marked as deleted rather than physically removed
 
 ## Technology Stack
@@ -17,61 +18,77 @@ A .NET 8 Web API project for client management with CRUD operations, built with 
 - **.NET 8** - Web API framework
 - **Entity Framework Core** - ORM for database operations
 - **SQL Server LocalDB** - Database engine
-- **Azure AD** - OAuth2 authentication provider
-- **JWT Bearer** - Token-based authentication
-- **Swagger/OpenAPI** - API documentation with OAuth2 integration
+- **Azure AD (Entra ID)** - OpenID Connect identity provider
+- **OpenID Connect** - Authentication protocol for SSO
+- **Cookie Authentication** - Session management
+- **Swagger/OpenAPI** - API documentation with OpenID Connect integration
 
 ## Prerequisites
 
 - [.NET 8 SDK](https://dotnet.microsoft.com/download/dotnet/8.0)
 - [SQL Server LocalDB](https://docs.microsoft.com/en-us/sql/database-engine/configure-windows/sql-server-express-localdb) (included with Visual Studio)
-- **Azure AD Tenant** - For OAuth2 authentication
-- **Azure AD App Registration** - Required for API authentication
+- **Azure AD Tenant** - For OpenID Connect authentication
+- **Azure AD App Registration** - Required for SSO authentication
 
 ## Authentication
 
-This API uses **OAuth2 with Azure AD** for authentication. All API endpoints require a valid JWT Bearer token.
+This API uses **OpenID Connect with Azure AD** for Single Sign-On (SSO) authentication. All API endpoints require users to be authenticated through Azure AD.
 
-### Authenticating via Swagger UI
+### How SSO Works
+
+1. **User attempts to access protected resource**
+2. **System redirects to Azure AD login page**
+3. **User authenticates with Azure AD credentials**
+4. **Azure AD redirects back with authentication token**
+5. **System creates authenticated session (cookie)**
+6. **User can access all protected resources without re-authentication**
+
+### Authentication Endpoints
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| GET | `/api/Auth/login` | Initiates SSO login process |
+| POST | `/api/Auth/logout` | Logs out user and terminates session |
+| GET | `/api/Auth/user` | Get current authenticated user info |
+
+### Authenticating via Browser
 
 1. **Run the application**:
    ```bash
    dotnet run
    ```
 
-2. **Navigate to Swagger UI**:
+2. **Navigate to any protected endpoint**:
+   ```
+   http://localhost:5217/api/Client
+   ```
+
+3. **Automatic SSO Login**:
+   - You'll be automatically redirected to Azure AD login page
+   - Enter your Azure AD credentials
+   - After successful login, you'll be redirected back to the API
+   - Your session will be maintained via secure cookies
+
+4. **Access Swagger UI**:
    ```
    http://localhost:5217/swagger
    ```
+   - Click "Authorize" to authenticate if needed
+   - All API calls will use your authenticated session
 
-3. **Authenticate using OAuth2**:
-   - Click the **"Authorize"** button at the top right
-   - In the OAuth2 section, click **"Authorize"**
-   - You'll be redirected to Azure AD login page
-   - Enter your Azure AD credentials
-   - After successful login, you'll be redirected back to Swagger
-   - The lock icon should now show as **closed**
+### Manual Login (Optional)
 
-4. **Test API endpoints**:
-   - All endpoints now include the Authorization header automatically
-   - You can test any endpoint with your authenticated session
+If you need to manually trigger the login process:
+```
+GET http://localhost:5217/api/Auth/login
+```
 
-### Manual Authentication (for other tools)
+### Session Management
 
-If you're using tools like Postman or curl, you need to:
-
-1. **Get an access token** from Azure AD
-2. **Include the token** in the Authorization header:
-   ```
-   Authorization: Bearer YOUR_ACCESS_TOKEN
-   ```
-
-### Token Information
-
-- **Token Type**: JWT Bearer
-- **Token Issuer**: Azure AD
-- **Token Audience**: API Application ID
-- **Token Expiration**: Typically 1 hour (configurable in Azure AD)
+- **Session Duration**: Determined by Azure AD configuration
+- **Session Storage**: Secure HTTP-only cookies
+- **Session Renewal**: Automatic when token expires
+- **Logout**: Clears both local session and Azure AD session
 
 ## Installation
 
@@ -95,6 +112,8 @@ If you're using tools like Postman or curl, you need to:
    ```bash
    dotnet build
    ```
+
+5. **Configure Azure AD settings** (see SECRETS_SETUP.md)
 
 ## Database Configuration
 
@@ -238,88 +257,55 @@ Net-Test-2025/
 
 ## Testing
 
-### Using Swagger UI with OAuth2
+### Using Swagger UI with OpenID Connect
 
 1. **Run the application**: `dotnet run`
 2. **Navigate to Swagger UI**: `http://localhost:5217/swagger`
-3. **Authenticate with OAuth2**:
-   - Click the **"Authorize"** button at the top right
-   - In the OAuth2 section, click **"Authorize"**
-   - You'll be redirected to Azure AD login page
+3. **Authenticate with OpenID Connect**:
+   - If not already authenticated, you'll be redirected to Azure AD login
    - Enter your Azure AD credentials
    - After successful login, you'll be redirected back to Swagger
-   - The lock icon should now show as **closed**
-4. **Test API endpoints interactively** - All requests will include authentication automatically
+   - Click **"Authorize"** button if needed to enable authentication for API calls
+4. **Test API endpoints interactively** - All requests will use your authenticated session
 
-### Using curl with OAuth2
+### Using Browser for Direct API Access
 
-**Note**: All API endpoints require authentication. You need to obtain an access token first.
-
-#### Option 1: Get Token via Browser (Recommended for Testing)
-1. Use Swagger UI to authenticate (steps above)
-2. Open browser Developer Tools → Network tab
-3. Make an API request in Swagger
-4. Copy the `Authorization: Bearer <token>` header from the network request
-
-#### Option 2: Get Token Programmatically
 ```bash
-# Get access token (replace with your values)
-curl -X POST "https://login.microsoftonline.com/YOUR_TENANT_ID/oauth2/v2.0/token" \
-  -H "Content-Type: application/x-www-form-urlencoded" \
-  -d "client_id=YOUR_CLIENT_ID&client_secret=YOUR_CLIENT_SECRET&scope=api://YOUR_CLIENT_ID/access_as_user&grant_type=client_credentials"
+# Open browser and navigate to:
+http://localhost:5217/api/Client
+
+# You'll be redirected to Azure AD for authentication
+# After login, you'll see the API response
 ```
 
-#### Making Authenticated API Calls
+### Using curl with Session Authentication
+
+**Note**: For programmatic access, you'll need to handle the OpenID Connect flow or use the API after browser authentication.
+
+#### Option 1: Browser-based Authentication (Recommended)
+1. Open browser and navigate to: `http://localhost:5217/api/Auth/login`
+2. Complete Azure AD authentication
+3. Copy session cookies from browser developer tools
+4. Use cookies in curl requests
+
+#### Option 2: Session-based API Calls
 ```bash
-# Set your access token
-TOKEN="YOUR_ACCESS_TOKEN_HERE"
+# Get current user info (requires authentication)
+curl -X GET "http://localhost:5217/api/Auth/user" \
+  -H "Cookie: YOUR_SESSION_COOKIES"
 
-# Get all clients (authenticated)
+# Get all clients (requires authentication)
 curl -X GET "http://localhost:5217/api/Client" \
-  -H "Authorization: Bearer $TOKEN"
-
-# Create a client (authenticated)
-curl -X POST "http://localhost:5217/api/Client" \
-  -H "Content-Type: application/json" \
-  -H "Authorization: Bearer $TOKEN" \
-  -d '{
-    "name": "Test User",
-    "email": "test@example.com",
-    "phone": "1234567890",
-    "age": "25",
-    "gender": "Male"
-  }'
-
-# Get specific client (authenticated)
-curl -X GET "http://localhost:5217/api/Client/1" \
-  -H "Authorization: Bearer $TOKEN"
-
-# Update client (authenticated)
-curl -X PUT "http://localhost:5217/api/Client/1" \
-  -H "Content-Type: application/json" \
-  -H "Authorization: Bearer $TOKEN" \
-  -d '{
-    "name": "Updated User",
-    "email": "updated@example.com",
-    "phone": "0987654321",
-    "age": "30",
-    "gender": "Female"
-  }'
-
-# Delete client (authenticated)
-curl -X DELETE "http://localhost:5217/api/Client/1" \
-  -H "Authorization: Bearer $TOKEN"
+  -H "Cookie: YOUR_SESSION_COOKIES"
 ```
 
 ### Expected Response for Unauthenticated Requests
-```json
-{
-  "type": "https://tools.ietf.org/html/rfc7235#section-3.1",
-  "title": "Unauthorized",
-  "status": 401,
-  "traceId": "00-..."
-}
 ```
+HTTP/1.1 302 Found
+Location: https://login.microsoftonline.com/[tenant-id]/oauth2/v2.0/authorize?...
+```
+
+Users are redirected to Azure AD login page instead of receiving a 401 error.
 
 ## Common Commands
 
@@ -351,6 +337,24 @@ dotnet clean
 
 ## Troubleshooting
 
+### Authentication Issues
+
+**Problem**: Redirected to Azure AD but authentication fails
+**Solution**: 
+- Check Azure AD app registration settings
+- Ensure redirect URI is configured: `http://localhost:5217/signin-oidc`
+- Verify client secret is configured (see SECRETS_SETUP.md)
+
+**Problem**: "invalid_client" error
+**Solution**: 
+- Verify ClientId in appsettings.json matches Azure AD app registration
+- Check client secret is properly configured in User Secrets
+
+**Problem**: Infinite redirect loop
+**Solution**: 
+- Check callback path configuration: `/signin-oidc`
+- Ensure Azure AD app registration has correct redirect URI
+
 ### Port Already in Use
 
 If you get "address already in use" error:
@@ -375,7 +379,10 @@ dotnet build
 
 ## Notes
 
+- The project uses **OpenID Connect** for true Single Sign-On authentication
+- **Session-based authentication** with secure HTTP-only cookies
+- **Azure AD integration** for enterprise-grade security
 - The project uses **soft delete** - clients are marked as deleted rather than removed
 - All API responses follow the **ServiceResult pattern** for consistent error handling
 - **Model validation** is automatically applied using Data Annotations
-- **Swagger UI** launches automatically in development mode (if not launching just navigate to http://localhost:5217/swagger/index.html)
+- **Swagger UI** launches automatically in development mode
