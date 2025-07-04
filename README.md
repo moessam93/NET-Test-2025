@@ -1,6 +1,6 @@
 # NET-Test-2025
 
-A .NET 8 Web API project for client management with CRUD operations, built with clean architecture principles.
+A .NET 8 Web API project for client management with CRUD operations, built with clean architecture principles and secured with Azure AD OAuth2 authentication.
 
 ## Features
 
@@ -8,7 +8,8 @@ A .NET 8 Web API project for client management with CRUD operations, built with 
 - **Entity Framework Core**: Code-first approach with SQL Server
 - **Input Validation**: Model validation with custom attributes
 - **Error Handling**: ServiceResult pattern for consistent error responses
-- **Swagger UI**: Interactive API documentation
+- **OAuth2 Authentication**: Secured with Azure AD Single Sign-On (SSO)
+- **Swagger UI**: Interactive API documentation with OAuth2 authentication
 - **Soft Delete**: Clients are marked as deleted rather than physically removed
 
 ## Technology Stack
@@ -16,12 +17,61 @@ A .NET 8 Web API project for client management with CRUD operations, built with 
 - **.NET 8** - Web API framework
 - **Entity Framework Core** - ORM for database operations
 - **SQL Server LocalDB** - Database engine
-- **Swagger/OpenAPI** - API documentation
+- **Azure AD** - OAuth2 authentication provider
+- **JWT Bearer** - Token-based authentication
+- **Swagger/OpenAPI** - API documentation with OAuth2 integration
 
 ## Prerequisites
 
 - [.NET 8 SDK](https://dotnet.microsoft.com/download/dotnet/8.0)
 - [SQL Server LocalDB](https://docs.microsoft.com/en-us/sql/database-engine/configure-windows/sql-server-express-localdb) (included with Visual Studio)
+- **Azure AD Tenant** - For OAuth2 authentication
+- **Azure AD App Registration** - Required for API authentication
+
+## Authentication
+
+This API uses **OAuth2 with Azure AD** for authentication. All API endpoints require a valid JWT Bearer token.
+
+### Authenticating via Swagger UI
+
+1. **Run the application**:
+   ```bash
+   dotnet run
+   ```
+
+2. **Navigate to Swagger UI**:
+   ```
+   http://localhost:5217/swagger
+   ```
+
+3. **Authenticate using OAuth2**:
+   - Click the **"Authorize"** button at the top right
+   - In the OAuth2 section, click **"Authorize"**
+   - You'll be redirected to Azure AD login page
+   - Enter your Azure AD credentials
+   - After successful login, you'll be redirected back to Swagger
+   - The lock icon should now show as **closed**
+
+4. **Test API endpoints**:
+   - All endpoints now include the Authorization header automatically
+   - You can test any endpoint with your authenticated session
+
+### Manual Authentication (for other tools)
+
+If you're using tools like Postman or curl, you need to:
+
+1. **Get an access token** from Azure AD
+2. **Include the token** in the Authorization header:
+   ```
+   Authorization: Bearer YOUR_ACCESS_TOKEN
+   ```
+
+### Token Information
+
+- **Token Type**: JWT Bearer
+- **Token Issuer**: Azure AD
+- **Token Audience**: API Application ID
+- **Token Expiration**: Typically 1 hour (configurable in Azure AD)
 
 ## Installation
 
@@ -188,21 +238,50 @@ Net-Test-2025/
 
 ## Testing
 
-### Using Swagger UI
+### Using Swagger UI with OAuth2
 
-1. Run the application: `dotnet run`
-2. Navigate to `http://localhost:5217/swagger`
-3. Test API endpoints interactively
+1. **Run the application**: `dotnet run`
+2. **Navigate to Swagger UI**: `http://localhost:5217/swagger`
+3. **Authenticate with OAuth2**:
+   - Click the **"Authorize"** button at the top right
+   - In the OAuth2 section, click **"Authorize"**
+   - You'll be redirected to Azure AD login page
+   - Enter your Azure AD credentials
+   - After successful login, you'll be redirected back to Swagger
+   - The lock icon should now show as **closed**
+4. **Test API endpoints interactively** - All requests will include authentication automatically
 
-### Using curl
+### Using curl with OAuth2
 
+**Note**: All API endpoints require authentication. You need to obtain an access token first.
+
+#### Option 1: Get Token via Browser (Recommended for Testing)
+1. Use Swagger UI to authenticate (steps above)
+2. Open browser Developer Tools → Network tab
+3. Make an API request in Swagger
+4. Copy the `Authorization: Bearer <token>` header from the network request
+
+#### Option 2: Get Token Programmatically
 ```bash
-# Get all clients
-curl -X GET "http://localhost:5217/api/Client"
+# Get access token (replace with your values)
+curl -X POST "https://login.microsoftonline.com/YOUR_TENANT_ID/oauth2/v2.0/token" \
+  -H "Content-Type: application/x-www-form-urlencoded" \
+  -d "client_id=YOUR_CLIENT_ID&client_secret=YOUR_CLIENT_SECRET&scope=api://YOUR_CLIENT_ID/access_as_user&grant_type=client_credentials"
+```
 
-# Create a client
+#### Making Authenticated API Calls
+```bash
+# Set your access token
+TOKEN="YOUR_ACCESS_TOKEN_HERE"
+
+# Get all clients (authenticated)
+curl -X GET "http://localhost:5217/api/Client" \
+  -H "Authorization: Bearer $TOKEN"
+
+# Create a client (authenticated)
 curl -X POST "http://localhost:5217/api/Client" \
   -H "Content-Type: application/json" \
+  -H "Authorization: Bearer $TOKEN" \
   -d '{
     "name": "Test User",
     "email": "test@example.com",
@@ -210,6 +289,36 @@ curl -X POST "http://localhost:5217/api/Client" \
     "age": "25",
     "gender": "Male"
   }'
+
+# Get specific client (authenticated)
+curl -X GET "http://localhost:5217/api/Client/1" \
+  -H "Authorization: Bearer $TOKEN"
+
+# Update client (authenticated)
+curl -X PUT "http://localhost:5217/api/Client/1" \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer $TOKEN" \
+  -d '{
+    "name": "Updated User",
+    "email": "updated@example.com",
+    "phone": "0987654321",
+    "age": "30",
+    "gender": "Female"
+  }'
+
+# Delete client (authenticated)
+curl -X DELETE "http://localhost:5217/api/Client/1" \
+  -H "Authorization: Bearer $TOKEN"
+```
+
+### Expected Response for Unauthenticated Requests
+```json
+{
+  "type": "https://tools.ietf.org/html/rfc7235#section-3.1",
+  "title": "Unauthorized",
+  "status": 401,
+  "traceId": "00-..."
+}
 ```
 
 ## Common Commands

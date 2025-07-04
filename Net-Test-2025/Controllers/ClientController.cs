@@ -1,3 +1,4 @@
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Net_Test_2025.Domains;
 using Net_Test_2025.Helpers;
@@ -7,6 +8,7 @@ using Net_Test_2025.Services.Contracts.Interfaces;
 namespace Net_Test_2025.Controllers;
 
 [ApiController]
+[Authorize]
 [Route("api/[controller]")]
 public class ClientController : ControllerBase
 {
