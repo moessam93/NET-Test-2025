@@ -1,4 +1,6 @@
-namespace Net_Test_2025.Services.Contracts.DTOs;
+using System.ComponentModel.DataAnnotations;
+using System.Linq;
+namespace Net_Test_2025.Services.Contracts.DTOs; 
 
 public class ServiceResult
 {
@@ -37,5 +39,10 @@ public static class ServiceError
     public static ServiceResult Error(string message)
     {
         return ServiceResult.Error(message);
+    }
+
+    public static ServiceResult BadRequest(List<ValidationResult> validationResults)
+    {
+        return ServiceResult.BadRequest(string.Join(", ", validationResults.Select(v => v.ErrorMessage)));
     }
 } 

@@ -93,6 +93,11 @@ public class ClientService : IClientService
     {
         try
         {
+            if (!request.IsValid())
+            {
+                return ServiceError.BadRequest(request.Validate());
+            }
+            
             var clientFromDb = await _context.Clients.FirstOrDefaultAsync(c => c.Email == request.Email || c.Phone == request.Phone);
             if (clientFromDb != null)
             {
@@ -123,6 +128,11 @@ public class ClientService : IClientService
     {
         try
         {
+            if (!request.IsValid())
+            {
+                return ServiceError.BadRequest(request.Validate());
+            }
+            
             var client = await _context.Clients.FirstOrDefaultAsync(c => c.Id == id);
             if (client == null)
             {

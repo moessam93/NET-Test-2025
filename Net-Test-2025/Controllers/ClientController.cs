@@ -44,11 +44,6 @@ public class ClientController : ControllerBase
     [HttpPost]
     public async Task<IActionResult> CreateClient(CreateClientRequest client)
     {
-        if (!ModelState.IsValid)
-        {
-            return BadRequest(ModelState);
-        }
-        
         var result = await _clientService.CreateClient(client);
         if (!result.IsSuccess)
         {
@@ -61,11 +56,6 @@ public class ClientController : ControllerBase
     [HttpPut("{id}")]
     public async Task<IActionResult> UpdateClient(int id, UpdateClientDto client)
     {
-        if (!ModelState.IsValid)
-        {
-            return BadRequest(ModelState);
-        }
-        
         var result = await _clientService.UpdateClient(client, id);
         if (!result.IsSuccess)
         {
