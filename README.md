@@ -170,7 +170,7 @@ dotnet run --environment Production
 dotnet watch run
 ```
 
-## 📚 API Endpoints
+## API Endpoints
 
 ### Client Management
 

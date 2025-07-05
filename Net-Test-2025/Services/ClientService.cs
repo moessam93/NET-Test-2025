@@ -49,7 +49,7 @@ public class ClientService : IClientService
                 Phone = c.Phone,
                 Age = c.Age ?? "N/A",
                 Gender = c.Gender.ToString(),
-                CreatedAt = c.CreatedAt.ToString("dd/MM/yyyy"),
+                CreatedAt = c.CreatedAt.ToString("dd/MM/yyyy HH:mm:ss"),
             }).ToList();
 
             return ServiceResult.Success(result);
@@ -78,7 +78,7 @@ public class ClientService : IClientService
                 Phone = client.Phone,
                 Age = client.Age ?? "N/A",
                 Gender = client.Gender.ToString(),
-                CreatedAt = client.CreatedAt.ToString("dd/MM/yyyy"),
+                CreatedAt = client.CreatedAt.ToString("dd/MM/yyyy HH:mm:ss"),
             };
 
             return ServiceResult.Success(result);

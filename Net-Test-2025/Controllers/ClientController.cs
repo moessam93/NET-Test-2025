@@ -55,7 +55,7 @@ public class ClientController : ControllerBase
             return BadRequest(result.ErrorMessage);
         }
         
-        return CreatedAtAction(nameof(CreateClient), new { id = result.Data }, new { id = result.Data, createdAt = DateTime.UtcNow.ToString("dd/MM/yyyy")});
+        return CreatedAtAction(nameof(CreateClient), new { id = result.Data }, new { id = result.Data, createdAt = DateTime.UtcNow.ToString("dd/MM/yyyy HH:mm:ss")});
     }
 
     [HttpPut("{id}")]
@@ -72,7 +72,7 @@ public class ClientController : ControllerBase
             return BadRequest(result.ErrorMessage);
         }
         
-        return CreatedAtAction(nameof(UpdateClient), new { id = result.Data }, new { id = result.Data, updatedAt = DateTime.UtcNow.ToString("dd/MM/yyyy")});
+        return Ok(new { id = result.Data, updatedAt = DateTime.UtcNow.ToString("dd/MM/yyyy HH:mm:ss")});
     }
 
     [HttpDelete("{id}")]
@@ -83,6 +83,6 @@ public class ClientController : ControllerBase
         {
             return BadRequest(result.ErrorMessage);
         }
-        return Ok(result.Data);
+        return Ok(new { id = result.Data, deletedAt = DateTime.UtcNow.ToString("dd/MM/yyyy HH:mm:ss")});
     }
 }
