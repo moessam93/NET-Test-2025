@@ -229,7 +229,8 @@ PUT /api/Client/1
 ```
 Net-Test-2025/
 ├── Controllers/           # API Controllers
-│   └── ClientController.cs
+│   ├── ClientController.cs
+│   └── AuthController.cs
 ├── Data/                 # Database Context
 │   ├── AppDbContext.cs
 │   └── Migrations/
